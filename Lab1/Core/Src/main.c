@@ -82,6 +82,16 @@ osMutexId_t blinkingHandle;
 const osMutexAttr_t blinking_attributes = {
   .name = "blinking"
 };
+/* Definitions for shortpress */
+osSemaphoreId_t shortpressHandle;
+const osSemaphoreAttr_t shortpress_attributes = {
+  .name = "shortpress"
+};
+/* Definitions for timerforblink */
+osSemaphoreId_t timerforblinkHandle;
+const osSemaphoreAttr_t timerforblink_attributes = {
+  .name = "timerforblink"
+};
 /* Definitions for myCountingSem01 */
 osSemaphoreId_t myCountingSem01Handle;
 const osSemaphoreAttr_t myCountingSem01_attributes = {
@@ -167,6 +177,12 @@ int main(void)
   /* USER CODE END RTOS_MUTEX */
 
   /* Create the semaphores(s) */
+  /* creation of shortpress */
+  shortpressHandle = osSemaphoreNew(1, 0, &shortpress_attributes);
+
+  /* creation of timerforblink */
+  timerforblinkHandle = osSemaphoreNew(1, 0, &timerforblink_attributes);
+
   /* creation of myCountingSem01 */
   myCountingSem01Handle = osSemaphoreNew(2, 0, &myCountingSem01_attributes);
 
@@ -775,11 +791,23 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   switch (GPIO_Pin)
   {
   case GPIO_PIN_13:
-	  HAL_GPIO_WritePin(GPIOB, LED2_Pin, GPIO_PIN_SET);
-	  break;
+  	  {
+  		  osSemaphoreRelease(shortpressHandle);
+		  //HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
+		  //HAL_Delay(100);
+		  //HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
+		  //HAL_GPIO_WritePin(GPIOB, LED2_Pin, GPIO_PIN_RESET);
+  		  break;
+  	  }
   default:
 	  break;
   }
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	if(htim == &htim6)
+		osSemaphoreRelease(timerforblinkHandle);
 }
 
 
@@ -816,7 +844,15 @@ void StartTimerBlink(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+	  osSemaphoreAcquire(timerforblinkHandle,osWaitForever);
+	  osMutexAcquire(blinkingHandle,osWaitForever);
+	  for(int i=0; i<20; i++){
+		  HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
+		  osDelay(50);
+		  HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
+		  osDelay(50);
+	  }
+	  osMutexRelease(blinkingHandle);
   }
   /* USER CODE END StartTimerBlink */
 }
@@ -834,7 +870,15 @@ void StartShortPressBlink(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+	  osSemaphoreAcquire(shortpressHandle,osWaitForever);
+	  osMutexAcquire(blinkingHandle,osWaitForever);
+	  for(int i=0; i<5; i++){
+		  HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
+		  osDelay(500);
+		  HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
+		  osDelay(500);
+	  }
+	  osMutexRelease(blinkingHandle);
   }
   /* USER CODE END StartShortPressBlink */
 }
