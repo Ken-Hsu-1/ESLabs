@@ -56,10 +56,10 @@ UART_HandleTypeDef huart3;
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
-/* Definitions for defaultTask */
-osThreadId_t defaultTaskHandle;
-const osThreadAttr_t defaultTask_attributes = {
-  .name = "defaultTask",
+/* Definitions for PressBlink */
+osThreadId_t PressBlinkHandle;
+const osThreadAttr_t PressBlink_attributes = {
+  .name = "PressBlink",
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
@@ -70,12 +70,17 @@ const osThreadAttr_t timerBlink_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
-/* Definitions for shortPressBlink */
-osThreadId_t shortPressBlinkHandle;
-const osThreadAttr_t shortPressBlink_attributes = {
-  .name = "shortPressBlink",
+/* Definitions for detectButton */
+osThreadId_t detectButtonHandle;
+const osThreadAttr_t detectButton_attributes = {
+  .name = "detectButton",
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for pressforblink */
+osMessageQueueId_t pressforblinkHandle;
+const osMessageQueueAttr_t pressforblink_attributes = {
+  .name = "pressforblink"
 };
 /* Definitions for blinking */
 osMutexId_t blinkingHandle;
@@ -91,6 +96,16 @@ const osSemaphoreAttr_t shortpress_attributes = {
 osSemaphoreId_t timerforblinkHandle;
 const osSemaphoreAttr_t timerforblink_attributes = {
   .name = "timerforblink"
+};
+/* Definitions for longpress */
+osSemaphoreId_t longpressHandle;
+const osSemaphoreAttr_t longpress_attributes = {
+  .name = "longpress"
+};
+/* Definitions for pressdetect */
+osSemaphoreId_t pressdetectHandle;
+const osSemaphoreAttr_t pressdetect_attributes = {
+  .name = "pressdetect"
 };
 /* Definitions for myCountingSem01 */
 osSemaphoreId_t myCountingSem01Handle;
@@ -112,9 +127,9 @@ static void MX_USART1_UART_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
 static void MX_TIM6_Init(void);
-void StartDefaultTask(void *argument);
+void StartPressBlink(void *argument);
 void StartTimerBlink(void *argument);
-void StartShortPressBlink(void *argument);
+void StartDetectButton(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -183,6 +198,12 @@ int main(void)
   /* creation of timerforblink */
   timerforblinkHandle = osSemaphoreNew(1, 0, &timerforblink_attributes);
 
+  /* creation of longpress */
+  longpressHandle = osSemaphoreNew(1, 0, &longpress_attributes);
+
+  /* creation of pressdetect */
+  pressdetectHandle = osSemaphoreNew(1, 0, &pressdetect_attributes);
+
   /* creation of myCountingSem01 */
   myCountingSem01Handle = osSemaphoreNew(2, 0, &myCountingSem01_attributes);
 
@@ -195,19 +216,23 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim6);
   /* USER CODE END RTOS_TIMERS */
 
+  /* Create the queue(s) */
+  /* creation of pressforblink */
+  pressforblinkHandle = osMessageQueueNew (1, sizeof(uint16_t), &pressforblink_attributes);
+
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
-  /* creation of defaultTask */
-  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+  /* creation of PressBlink */
+  PressBlinkHandle = osThreadNew(StartPressBlink, NULL, &PressBlink_attributes);
 
   /* creation of timerBlink */
   timerBlinkHandle = osThreadNew(StartTimerBlink, NULL, &timerBlink_attributes);
 
-  /* creation of shortPressBlink */
-  shortPressBlinkHandle = osThreadNew(StartShortPressBlink, NULL, &shortPressBlink_attributes);
+  /* creation of detectButton */
+  detectButtonHandle = osThreadNew(StartDetectButton, NULL, &detectButton_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -791,17 +816,13 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   switch (GPIO_Pin)
   {
-  case GPIO_PIN_13:
-  	  {
-  		  osSemaphoreRelease(shortpressHandle);
-		  //HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
-		  //HAL_Delay(100);
-		  //HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
-		  //HAL_GPIO_WritePin(GPIOB, LED2_Pin, GPIO_PIN_RESET);
-  		  break;
-  	  }
-  default:
-	  break;
+	  case GPIO_PIN_13:
+		  {
+			  osSemaphoreRelease(pressdetectHandle);
+			  break;
+		  }
+	  default:
+		  break;
   }
 }
 
@@ -814,20 +835,40 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 /* USER CODE END 4 */
 
-/* USER CODE BEGIN Header_StartDefaultTask */
+/* USER CODE BEGIN Header_StartPressBlink */
 /**
-  * @brief  Function implementing the defaultTask thread.
+  * @brief  Function implementing the PressBlink thread.
   * @param  argument: Not used
   * @retval None
   */
-/* USER CODE END Header_StartDefaultTask */
-void StartDefaultTask(void *argument)
+/* USER CODE END Header_StartPressBlink */
+void StartPressBlink(void *argument)
 {
   /* USER CODE BEGIN 5 */
+  uint16_t msg;
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+	  osMessageQueueGet(pressforblinkHandle,&msg,NULL,osWaitForever);
+	  osMutexAcquire(blinkingHandle,osWaitForever);
+	  if(msg == 0){
+		  for(int i=0; i<5; i++){
+			  HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
+			  osDelay(500);
+			  HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
+			  osDelay(500);
+		  }
+	  }
+	  else if(msg == 1){
+		  for(int i=0; i<50; i++){
+			  HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
+			  osDelay(50);
+			  HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
+			  osDelay(50);
+		  }
+
+	  }
+	  osMutexRelease(blinkingHandle);
   }
   /* USER CODE END 5 */
 }
@@ -858,30 +899,32 @@ void StartTimerBlink(void *argument)
   /* USER CODE END StartTimerBlink */
 }
 
-/* USER CODE BEGIN Header_StartShortPressBlink */
+/* USER CODE BEGIN Header_StartDetectButton */
 /**
-* @brief Function implementing the shortPressBlink thread.
+* @brief Function implementing the detectButton thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartShortPressBlink */
-void StartShortPressBlink(void *argument)
+/* USER CODE END Header_StartDetectButton */
+void StartDetectButton(void *argument)
 {
-  /* USER CODE BEGIN StartShortPressBlink */
+  /* USER CODE BEGIN StartDetectButton */
   /* Infinite loop */
   for(;;)
   {
-	  osSemaphoreAcquire(shortpressHandle,osWaitForever);
-	  osMutexAcquire(blinkingHandle,osWaitForever);
-	  for(int i=0; i<5; i++){
-		  HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
-		  osDelay(500);
-		  HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
-		  osDelay(500);
+	  osSemaphoreAcquire(pressdetectHandle,osWaitForever);
+	  uint16_t msg;
+	  msg = 1;
+	  for(int i=0; i<8; i++){
+		  osDelay(100);
+	  	  if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == 1){
+	  		  msg = 0;
+	  		  break;
+	  	  }
 	  }
-	  osMutexRelease(blinkingHandle);
+	  osMessageQueuePut(pressforblinkHandle,&msg,0,NULL);
   }
-  /* USER CODE END StartShortPressBlink */
+  /* USER CODE END StartDetectButton */
 }
 
 /**
