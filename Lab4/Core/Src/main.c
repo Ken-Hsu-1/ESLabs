@@ -20,6 +20,7 @@
 #include "main.h"
 #include "cmsis_os.h"
 #include "app_bluenrg_ms.h"
+#include "stm32l475e_iot01_accelero.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -118,6 +119,7 @@ int main(void)
   MX_USB_OTG_FS_PCD_Init();
   MX_BlueNRG_MS_Init();
   /* USER CODE BEGIN 2 */
+  BSP_ACCELERO_Init();
 
   /* USER CODE END 2 */
 

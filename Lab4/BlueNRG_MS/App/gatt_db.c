@@ -23,6 +23,7 @@
 #include "gatt_db.h"
 #include "bluenrg_conf.h"
 #include "bluenrg_gatt_aci.h"
+#include "stm32l475e_iot01_accelero.h"
 
 /** @brief Macro that stores Value into a buffer in Little Endian Format (2 bytes)*/
 #define HOST_TO_LE_16(buf, val)    ( ((buf)[0] =  (uint8_t) (val)    ) , \
@@ -100,7 +101,7 @@ tBleStatus Add_HWServW2ST_Service(void)
   COPY_ACC_GYRO_MAG_W2ST_CHAR_UUID(uuid);
   BLUENRG_memcpy(&char_uuid.Char_UUID_128, uuid, 16);
   ret =  aci_gatt_add_char(HWServW2STHandle, UUID_TYPE_128, char_uuid.Char_UUID_128,
-                           2+3*3*2,
+                           6,
                            CHAR_PROP_NOTIFY,
                            ATTR_PERMISSION_NONE,
                            GATT_NOTIFY_READ_REQ_AND_WAIT_FOR_APPL_RESP,
@@ -155,27 +156,35 @@ fail:
  * @param  AxesRaw_t structure containing acceleration value in mg.
  * @retval tBleStatus Status
  */
-tBleStatus Acc_Update(AxesRaw_t *x_axes, AxesRaw_t *g_axes, AxesRaw_t *m_axes)
+tBleStatus Acc_Update()
 {
-  uint8_t buff[2+2*3*3];
+//  uint8_t buff[2+2*3*3];
   tBleStatus ret;
 
-  HOST_TO_LE_16(buff,(HAL_GetTick()>>3));
-
-  HOST_TO_LE_16(buff+2,-x_axes->AXIS_Y);
-  HOST_TO_LE_16(buff+4, x_axes->AXIS_X);
-  HOST_TO_LE_16(buff+6,-x_axes->AXIS_Z);
-
-  HOST_TO_LE_16(buff+8,g_axes->AXIS_Y);
-  HOST_TO_LE_16(buff+10,g_axes->AXIS_X);
-  HOST_TO_LE_16(buff+12,g_axes->AXIS_Z);
-
-  HOST_TO_LE_16(buff+14,m_axes->AXIS_Y);
-  HOST_TO_LE_16(buff+16,m_axes->AXIS_X);
-  HOST_TO_LE_16(buff+18,m_axes->AXIS_Z);
+//  HOST_TO_LE_16(buff,(HAL_GetTick()>>3));
+//
+//  HOST_TO_LE_16(buff+2,-x_axes->AXIS_Y);
+//  HOST_TO_LE_16(buff+4, x_axes->AXIS_X);
+//  HOST_TO_LE_16(buff+6,-x_axes->AXIS_Z);
+//
+//  HOST_TO_LE_16(buff+8,g_axes->AXIS_Y);
+//  HOST_TO_LE_16(buff+10,g_axes->AXIS_X);
+//  HOST_TO_LE_16(buff+12,g_axes->AXIS_Z);
+//
+//  HOST_TO_LE_16(buff+14,m_axes->AXIS_Y);
+//  HOST_TO_LE_16(buff+16,m_axes->AXIS_X);
+//  HOST_TO_LE_16(buff+18,m_axes->AXIS_Z);
+//
+   uint8_t buff[6];
+   int16_t pDataXYZ[3];
+   BSP_ACCELERO_AccGetXYZ(pDataXYZ);
+   HOST_TO_LE_16(buff,pDataXYZ[0]);
+   HOST_TO_LE_16(buff+2,pDataXYZ[1]);
+   HOST_TO_LE_16(buff+4,pDataXYZ[2]);
+   PRINTF("%d\n",pDataXYZ[0]);
 
   ret = aci_gatt_update_char_value(HWServW2STHandle, AccGyroMagCharHandle,
-				   0, 2+2*3*3, buff);
+				   0, 6, buff);
   if (ret != BLE_STATUS_SUCCESS){
     PRINTF("Error while updating Acceleration characteristic: 0x%02X\n",ret) ;
     return BLE_STATUS_ERROR ;
@@ -192,40 +201,49 @@ tBleStatus Acc_Update(AxesRaw_t *x_axes, AxesRaw_t *g_axes, AxesRaw_t *m_axes)
 tBleStatus Quat_Update(AxesRaw_t *data)
 {
   tBleStatus ret;
-  uint8_t buff[2+6*SEND_N_QUATERNIONS];
+//  uint8_t buff[2+6*SEND_N_QUATERNIONS];
 
-  HOST_TO_LE_16(buff,(HAL_GetTick()>>3));
+//  HOST_TO_LE_16(buff,(HAL_GetTick()>>3));
+//
+//#if SEND_N_QUATERNIONS == 1
+//  HOST_TO_LE_16(buff+2,data[0].AXIS_X);
+//  HOST_TO_LE_16(buff+4,data[0].AXIS_Y);
+//  HOST_TO_LE_16(buff+6,data[0].AXIS_Z);
+//#elif SEND_N_QUATERNIONS == 2
+//  HOST_TO_LE_16(buff+2,data[0].AXIS_X);
+//  HOST_TO_LE_16(buff+4,data[0].AXIS_Y);
+//  HOST_TO_LE_16(buff+6,data[0].AXIS_Z);
+//
+//  HOST_TO_LE_16(buff+8 ,data[1].AXIS_X);
+//  HOST_TO_LE_16(buff+10,data[1].AXIS_Y);
+//  HOST_TO_LE_16(buff+12,data[1].AXIS_Z);
+//#elif SEND_N_QUATERNIONS == 3
+//  HOST_TO_LE_16(buff+2,data[0].AXIS_X);
+//  HOST_TO_LE_16(buff+4,data[0].AXIS_Y);
+//  HOST_TO_LE_16(buff+6,data[0].AXIS_Z);
+//
+//  HOST_TO_LE_16(buff+8 ,data[1].AXIS_X);
+//  HOST_TO_LE_16(buff+10,data[1].AXIS_Y);
+//  HOST_TO_LE_16(buff+12,data[1].AXIS_Z);
+//
+//  HOST_TO_LE_16(buff+14,data[2].AXIS_X);
+//  HOST_TO_LE_16(buff+16,data[2].AXIS_Y);
+//  HOST_TO_LE_16(buff+18,data[2].AXIS_Z);
+//#else
+//#error SEND_N_QUATERNIONS could be only 1,2,3
+//#endif
 
-#if SEND_N_QUATERNIONS == 1
-  HOST_TO_LE_16(buff+2,data[0].AXIS_X);
-  HOST_TO_LE_16(buff+4,data[0].AXIS_Y);
-  HOST_TO_LE_16(buff+6,data[0].AXIS_Z);
-#elif SEND_N_QUATERNIONS == 2
-  HOST_TO_LE_16(buff+2,data[0].AXIS_X);
-  HOST_TO_LE_16(buff+4,data[0].AXIS_Y);
-  HOST_TO_LE_16(buff+6,data[0].AXIS_Z);
 
-  HOST_TO_LE_16(buff+8 ,data[1].AXIS_X);
-  HOST_TO_LE_16(buff+10,data[1].AXIS_Y);
-  HOST_TO_LE_16(buff+12,data[1].AXIS_Z);
-#elif SEND_N_QUATERNIONS == 3
-  HOST_TO_LE_16(buff+2,data[0].AXIS_X);
-  HOST_TO_LE_16(buff+4,data[0].AXIS_Y);
-  HOST_TO_LE_16(buff+6,data[0].AXIS_Z);
-
-  HOST_TO_LE_16(buff+8 ,data[1].AXIS_X);
-  HOST_TO_LE_16(buff+10,data[1].AXIS_Y);
-  HOST_TO_LE_16(buff+12,data[1].AXIS_Z);
-
-  HOST_TO_LE_16(buff+14,data[2].AXIS_X);
-  HOST_TO_LE_16(buff+16,data[2].AXIS_Y);
-  HOST_TO_LE_16(buff+18,data[2].AXIS_Z);
-#else
-#error SEND_N_QUATERNIONS could be only 1,2,3
-#endif
+//
+  uint8_t buff[6];
+  int16_t pDataXYZ[3];
+  BSP_ACCELERO_AccGetXYZ(pDataXYZ);
+  HOST_TO_LE_16(buff,pDataXYZ[0]);
+  HOST_TO_LE_16(buff+2,pDataXYZ[1]);
+  HOST_TO_LE_16(buff+4,pDataXYZ[2]);
 
   ret = aci_gatt_update_char_value(SWServW2STHandle, QuaternionsCharHandle,
-				   0, 2+6*SEND_N_QUATERNIONS, buff);
+				   0, 6, buff);
   if (ret != BLE_STATUS_SUCCESS){
     PRINTF("Error while updating Sensor Fusion characteristic: 0x%02X\n",ret) ;
     return BLE_STATUS_ERROR ;
@@ -296,6 +314,6 @@ int Get_freq(void){
 	      return BLE_STATUS_ERROR ;
 	  }
 	  int freq = (int)data[0];
-	  if(freq == 0) return 100;
+	  if(freq == 0) return 10;
 	  return freq;
 }

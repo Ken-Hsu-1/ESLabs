@@ -65,6 +65,8 @@ static volatile uint8_t user_button_pressed = 0;
 
 /* USER CODE BEGIN PV */
 
+
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -211,19 +213,32 @@ void MX_BlueNRG_MS_Init(void)
 /*
  * BlueNRG-MS background task
  */
+
 void MX_BlueNRG_MS_Process(void)
 {
   /* USER CODE BEGIN BlueNRG_MS_Process_PreTreatment */
 
   /* USER CODE END BlueNRG_MS_Process_PreTreatment */
+	int count;
 
 	if (set_connectable)
 	  {
 	    Set_DeviceConnectable();
 	    set_connectable = FALSE;
+	    count = 0;
 	  }
-	User_Process();
 	hci_user_evt_proc();
+	if (connected){
+		HAL_Delay(100);
+
+		count = count + 1;
+		int delay = Get_freq();
+		if(count >= delay){
+			Acc_Update();
+			count = 0;
+		}
+	}
+
 
   /* USER CODE BEGIN BlueNRG_MS_Process_PostTreatment */
 
@@ -281,29 +296,28 @@ void User_Process(void)
     if (connected)
     {
       /* Set a random seed */
-      srand(HAL_GetTick());
+      //srand(HAL_GetTick());
 
       /* Update emulated Environmental data */
-      Set_Random_Environmental_Values(&data_t, &data_p);
+      //Set_Random_Environmental_Values(&data_t, &data_p);
       //BlueMS_Environmental_Update((int32_t)(data_p *100), (int16_t)(data_t * 10));
 
       /* Update emulated Acceleration, Gyroscope and Sensor Fusion data */
-      Set_Random_Motion_Values(counter);
-      Acc_Update(&x_axes, &g_axes, &m_axes);
+      //Set_Random_Motion_Values(counter);
+      Acc_Update();
       //Quat_Update(&q_axes);
 
-      counter ++;
-      if (counter == 40) {
-        counter = 0;
-        Reset_Motion_Values();
-      }
+//      counter ++;
+//      if (counter == 40) {
+//        counter = 0;
+//        Reset_Motion_Values();
+//      }
 #if !USE_BUTTON
-      int delay = Get_freq();
-      PRINTF("%d\n",Get_freq());
-      for(int i=0; i<delay; i=i+1){
-    	  HAL_Delay(10); /* wait 1 sec before sending new data */
-    	  delay = Get_freq();
-      }
+//      int delay = Get_freq();
+//      for(int i=0; i<delay; i=i+1){
+//    	  HAL_Delay(10); /* wait 1 sec before sending new data */
+//    	  delay = Get_freq();
+//      }
 #endif
     }
 #if USE_BUTTON

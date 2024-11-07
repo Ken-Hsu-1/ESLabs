@@ -56,7 +56,12 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/include/queue.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/include/event_groups.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/include/timers.h \
- ../BlueNRG_MS/App/app_bluenrg_ms.h
+ ../BlueNRG_MS/App/app_bluenrg_ms.h \
+ ../Drivers/BSP/B-L475E-IOT01A2/stm32l475e_iot01_accelero.h \
+ ../Drivers/BSP/B-L475E-IOT01A2/b_l475e_iot01a2.h \
+ ../Drivers/BSP/B-L475E-IOT01A2/../Components/lsm6dsl/lsm6dsl.h \
+ ../Drivers/BSP/B-L475E-IOT01A2/../Components/lsm6dsl/../Common/accelero.h \
+ ../Drivers/BSP/B-L475E-IOT01A2/../Components/lsm6dsl/../Common/gyro.h
 ../Core/Inc/main.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal.h:
 ../Core/Inc/stm32l4xx_hal_conf.h:
@@ -116,3 +121,8 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 ../Middlewares/Third_Party/FreeRTOS/Source/include/event_groups.h:
 ../Middlewares/Third_Party/FreeRTOS/Source/include/timers.h:
 ../BlueNRG_MS/App/app_bluenrg_ms.h:
+../Drivers/BSP/B-L475E-IOT01A2/stm32l475e_iot01_accelero.h:
+../Drivers/BSP/B-L475E-IOT01A2/b_l475e_iot01a2.h:
+../Drivers/BSP/B-L475E-IOT01A2/../Components/lsm6dsl/lsm6dsl.h:
+../Drivers/BSP/B-L475E-IOT01A2/../Components/lsm6dsl/../Common/accelero.h:
+../Drivers/BSP/B-L475E-IOT01A2/../Components/lsm6dsl/../Common/gyro.h:
