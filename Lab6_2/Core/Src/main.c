@@ -188,17 +188,17 @@ void ADC1_Init(void)
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
 	//to do: inform RTOS task to print out sensor data
-	printf("123");
-	//half = 0;
-	//osSemaphoreRelease(DMAprintHandle);
+	//printf("123\n");
+	half = 0;
+	osSemaphoreRelease(DMAprintHandle);
 }
 
 void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef *hadc)
 {
     //to do: inform RTOS task to print out sensor data
-	printf("456");
-	//half = 1;
-	//osSemaphoreRelease(DMAprintHandle);
+	//printf("456\n");
+	half = 1;
+	osSemaphoreRelease(DMAprintHandle);
 }
 
 void DMA1_Channel1_IRQHandler(void)
@@ -230,7 +230,7 @@ void ADC1_DMA1CH1_init()
     ADC1_Init();
 
     NVIC_SetVector(DMA1_Channel1_IRQn, (uint32_t)&DMA1_Channel1_IRQHandler);
-    HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
+    HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
 }
 
@@ -311,31 +311,28 @@ int main(void)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_DFSDM1_Init();
-  MX_I2C2_Init();
-  MX_QUADSPI_Init();
-  MX_SPI3_Init();
+  //MX_GPIO_Init();
+  //MX_DFSDM1_Init();
+  //MX_I2C2_Init();
+  //MX_QUADSPI_Init();
+  //MX_SPI3_Init();
   MX_USART1_UART_Init();
-  MX_USART3_UART_Init();
-  MX_USB_OTG_FS_PCD_Init();
+  //MX_USART3_UART_Init();
+  //MX_USB_OTG_FS_PCD_Init();
   /* USER CODE BEGIN 2 */
 
   TIM1_Init();
   ADC1_DMA1CH1_init();
 
-  printf("Init complete\n");
 
   HAL_ADC_Start_DMA(&hadc1,(uint32_t *) &sample_buffer[0], SAMPLE_BUFFER_SIZE);
+
   HAL_TIM_Base_Start_IT(&htim1);
-
-  printf("Start\n");
-
 
   /* USER CODE END 2 */
 
   /* Init scheduler */
-  //osKernelInitialize();
+  osKernelInitialize();
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
@@ -343,7 +340,7 @@ int main(void)
 
   /* Create the semaphores(s) */
   /* creation of DMAprint */
-  //DMAprintHandle = osSemaphoreNew(1, 0, &DMAprint_attributes);
+  DMAprintHandle = osSemaphoreNew(1, 0, &DMAprint_attributes);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
@@ -359,7 +356,7 @@ int main(void)
 
   /* Create the thread(s) */
   /* creation of defaultTask */
-  //defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -370,7 +367,7 @@ int main(void)
   /* USER CODE END RTOS_EVENTS */
 
   /* Start scheduler */
-  //osKernelStart();
+  osKernelStart();
 
   /* We should never get here as control is now taken by the scheduler */
 
@@ -924,6 +921,7 @@ void StartDefaultTask(void *argument)
 	  for(int i=0; i<SAMPLE_BUFFER_SIZE/2; i=i+1){
 		  printf("%d  ",sample_buffer[i+offset]);
 	  }
+	  printf("\n");
   }
   /* USER CODE END 5 */
 }
