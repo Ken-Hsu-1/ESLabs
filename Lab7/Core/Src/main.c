@@ -124,7 +124,7 @@ const osSemaphoreAttr_t commStart_attributes = {
 #define SSID	"Ken"
 #define PASSWORD "12345678"
 
-uint8_t RemoteIP[] = {192,168,172,78};
+uint8_t RemoteIP[] = {192,168,48,78};
 #define RemotePORT	8002
 
 #define WIFI_WRITE_TIMEOUT 10000
@@ -142,6 +142,12 @@ int32_t ret;
 int16_t Trials = CONNECTION_TRIAL_MAX;
 
 extern  SPI_HandleTypeDef hspi;
+
+#define moving_num 5
+
+int16_t acc_x[moving_num];
+uint8_t count = 0;
+int16_t ma_x[1];
 
 
 /* USER CODE END PV */
@@ -247,6 +253,15 @@ void WIFI_init_connect(void)
 
 }
 
+void my_inital(void)
+{
+	for(int i=0; i<moving_num; i=i+1)
+		acc_x[i] = 0;
+	count = 0;
+	ma_x[0] = 0;
+	ma_x[1] = 0;
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -293,6 +308,8 @@ int main(void)
   WIFI_init_connect();
   printf("wifi init finish\n");
 
+  my_inital();
+
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -318,6 +335,7 @@ int main(void)
 
   /* USER CODE BEGIN RTOS_TIMERS */
   /* start timers, add new ones, ... */
+  HAL_TIM_Base_Start_IT(&htim6);
   /* USER CODE END RTOS_TIMERS */
 
   /* USER CODE BEGIN RTOS_QUEUES */
@@ -595,9 +613,9 @@ static void MX_TIM6_Init(void)
 
   /* USER CODE END TIM6_Init 1 */
   htim6.Instance = TIM6;
-  htim6.Init.Prescaler = 800;
+  htim6.Init.Prescaler = 4000-1;
   htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim6.Init.Period = 1000;
+  htim6.Init.Period = 1000-1;
   htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
   {
@@ -934,6 +952,12 @@ void SPI3_IRQHandler(void)
   HAL_SPI_IRQHandler(&hspi);
 }
 
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	if(htim == &htim6)
+		osSemaphoreRelease(timerEvtHandle);
+}
+
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -950,7 +974,12 @@ void StartDefaultTask(void *argument)
   for(;;)
   {
 	osSemaphoreAcquire(convStartHandle, osWaitForever);
-    osDelay(1);
+	int16_t total = 0;
+	for(int i=0; i<moving_num; i=i+1)
+		total = total + acc_x[i];
+    ma_x[1] = total/moving_num;
+    printf("after_ma_x: %d\n",ma_x[1]);
+    osSemaphoreRelease(commStartHandle);
   }
   /* USER CODE END 5 */
 }
@@ -969,7 +998,14 @@ void StartacqTask(void *argument)
   for(;;)
   {
 	osSemaphoreAcquire(timerEvtHandle, osWaitForever);
-    osDelay(1);
+	int16_t pDataXYZ[3];
+	BSP_ACCELERO_AccGetXYZ(pDataXYZ);
+	acc_x[count] = pDataXYZ[0];
+	ma_x[0] = pDataXYZ[0];
+	printf("acc_x: %d\n",pDataXYZ[0]);
+	count = count+1;
+	if(count >= moving_num) count = 0;
+	osSemaphoreRelease(convStartHandle);
   }
   /* USER CODE END StartacqTask */
 }
@@ -987,6 +1023,7 @@ void StartcommTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
+	  osSemaphoreAcquire(commStartHandle, osWaitForever);
 	  if(Socket != -1)
 	      {
 	        ret = WIFI_ReceiveData(Socket, RxData, sizeof(RxData)-1, &Datalen, WIFI_READ_TIMEOUT);
@@ -997,14 +1034,9 @@ void StartcommTask(void *argument)
 	            RxData[Datalen]=0;
 	            printf("Received: %s\n",RxData);
 
-	            int16_t pDataXYZ[3];
+	            uint8_t* acc_data = (uint8_t*) &ma_x[0];
 
-	            BSP_ACCELERO_AccGetXYZ(pDataXYZ);
-	            printf("\n%d %d %d \n",pDataXYZ[0],pDataXYZ[1],pDataXYZ[2]);
-	            uint8_t* acc_data = (uint8_t*) &pDataXYZ[0];
-	            printf("\n%d %d \n",*acc_data,sizeof(acc_data));
-
-	            ret = WIFI_SendData(Socket, acc_data, 2, &Datalen, WIFI_WRITE_TIMEOUT);
+	            ret = WIFI_SendData(Socket, acc_data, 4, &Datalen, WIFI_WRITE_TIMEOUT);
 	            if (ret != WIFI_STATUS_OK)
 	            {
 	              printf("> ERROR : Failed to Send Data, connection closed\n");
